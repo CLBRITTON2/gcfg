@@ -163,12 +163,13 @@ func (s *Scanner) scanIdentifier() string {
 	return string(s.src[offs:s.offset])
 }
 
+// val indicate if we are scanning a value (vs a header)
 func (s *Scanner) scanEscape(val bool) {
 	offs := s.offset
 	ch := s.ch
 	s.next() // always make progress
 	switch ch {
-	case '\\', '"':
+	case '\\', '"', '\n':
 		// ok
 	case 'n', 't', 'b':
 		if val {

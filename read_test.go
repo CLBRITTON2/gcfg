@@ -399,6 +399,10 @@ func TestReadWithCallback(t *testing.T) {
 	key5=
 	[sect1 "subsect2"]
 	[sect2]
+	[sect3]
+    foo = "!f(){ \
+	echo hello; \
+	};f"
 	`
 	expected := [][]string{
 		[]string{"sect1", "", "", "", "true"},
@@ -410,6 +414,8 @@ func TestReadWithCallback(t *testing.T) {
 		[]string{"sect1", "subsect1", "key5", "", "false"},
 		[]string{"sect1", "subsect2", "", "", "true"},
 		[]string{"sect2", "", "", "", "true"},
+		[]string{"sect3", "", "", "", "true"},
+		[]string{"sect3", "", "foo", "!f(){ \n\techo hello; \n\t};f", "false"},
 	}
 	err := ReadWithCallback(bytes.NewReader([]byte(text)), cb)
 	if err != nil {
