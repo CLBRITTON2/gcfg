@@ -12,7 +12,7 @@ import (
 	"github.com/go-git/gcfg/token"
 )
 
-var unescape = map[rune]rune{'\\': '\\', '"': '"', 'n': '\n', 't': '\t', 'b': '\b'}
+var unescape = map[rune]rune{'\\': '\\', '"': '"', 'n': '\n', 't': '\t', 'b': '\b', '\n': '\n'}
 
 // no error: invalid literals should be caught by scanner
 func unquote(s string) string {
