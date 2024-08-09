@@ -183,7 +183,6 @@ func read(c *warnings.Collector, callback func(string, string, string, string, b
 			}
 		}
 	}
-	panic("never reached")
 }
 
 func readInto(config interface{}, fset *token.FileSet, file *token.File,
