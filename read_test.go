@@ -176,10 +176,10 @@ var readtests = []struct {
 	{"\n[section]\nname=\"va ; lue\" ; cmnt", &cBasic{Section: cBasicS1{Name: "va ; lue"}}, true},
 	{"\n[section]\nname=; cmnt", &cBasic{Section: cBasicS1{Name: ""}}, true},
 }}, {"scanning:subsections", []readtest{
-	{"\n[sub \"A\"]\nname=value", &cSubs{map[string]*cSubsS1{"A": &cSubsS1{"value"}}}, true},
-	{"\n[sub \"b\"]\nname=value", &cSubs{map[string]*cSubsS1{"b": &cSubsS1{"value"}}}, true},
-	{"\n[sub \"A\\\\\"]\nname=value", &cSubs{map[string]*cSubsS1{"A\\": &cSubsS1{"value"}}}, true},
-	{"\n[sub \"A\\\"\"]\nname=value", &cSubs{map[string]*cSubsS1{"A\"": &cSubsS1{"value"}}}, true},
+	{"\n[sub \"A\"]\nname=value", &cSubs{map[string]*cSubsS1{"A": {"value"}}}, true},
+	{"\n[sub \"b\"]\nname=value", &cSubs{map[string]*cSubsS1{"b": {"value"}}}, true},
+	{"\n[sub \"A\\\\\"]\nname=value", &cSubs{map[string]*cSubsS1{"A\\": {"value"}}}, true},
+	{"\n[sub \"A\\\"\"]\nname=value", &cSubs{map[string]*cSubsS1{"A\"": {"value"}}}, true},
 }}, {"syntax", []readtest{
 	// invalid line
 	{"\n[section]\n=", &cBasic{}, false},
@@ -216,7 +216,7 @@ var readtests = []struct {
 	// name specified as struct tag
 	{"[tag-name]\nname=value", &cBasic{TagName: cBasicS1{Name: "value"}}, true},
 	// empty subsections
-	{"\n[sub \"A\"]\n[sub \"B\"]", &cSubs{map[string]*cSubsS1{"A": &cSubsS1{}, "B": &cSubsS1{}}}, true},
+	{"\n[sub \"A\"]\n[sub \"B\"]", &cSubs{map[string]*cSubsS1{"A": {}, "B": {}}}, true},
 }}, {"multivalue", []readtest{
 	// unnamed slice type: treat as multi-value
 	{"\n[m1]", &cMulti{M1: cMultiS1{}}, true},
@@ -408,17 +408,17 @@ func TestReadWithCallback(t *testing.T) {
 	};f"
 	`
 	expected := [][]string{
-		[]string{"sect1", "", "", "", "true"},
-		[]string{"sect1", "", "key1", "value1", "false"},
-		[]string{"sect1", "subsect1", "", "", "true"},
-		[]string{"sect1", "subsect1", "key2", "value2", "false"},
-		[]string{"sect1", "subsect1", "key3", "value3", "false"},
-		[]string{"sect1", "subsect1", "key4", "", "true"},
-		[]string{"sect1", "subsect1", "key5", "", "false"},
-		[]string{"sect1", "subsect2", "", "", "true"},
-		[]string{"sect2", "", "", "", "true"},
-		[]string{"sect3", "", "", "", "true"},
-		[]string{"sect3", "", "foo", "!f(){ \n\techo hello; \n\t};f", "false"},
+		{"sect1", "", "", "", "true"},
+		{"sect1", "", "key1", "value1", "false"},
+		{"sect1", "subsect1", "", "", "true"},
+		{"sect1", "subsect1", "key2", "value2", "false"},
+		{"sect1", "subsect1", "key3", "value3", "false"},
+		{"sect1", "subsect1", "key4", "", "true"},
+		{"sect1", "subsect1", "key5", "", "false"},
+		{"sect1", "subsect2", "", "", "true"},
+		{"sect2", "", "", "", "true"},
+		{"sect3", "", "", "", "true"},
+		{"sect3", "", "foo", "!f(){ \n\techo hello; \n\t};f", "false"},
 	}
 	err := ReadWithCallback(bytes.NewReader([]byte(text)), cb)
 	if err != nil {
@@ -466,15 +466,15 @@ func TestReadWithCallback_WithError(t *testing.T) {
 	[sect2]
 	`
 	expected := [][]string{
-		[]string{"sect1", "", "", "", "true"},
-		[]string{"sect1", "", "key1", "value1", "false"},
-		[]string{"sect1", "subsect1", "", "", "true"},
-		[]string{"sect1", "subsect1", "key2", "value2", "false"},
-		[]string{"sect1", "subsect1", "key3", "value3", "false"},
-		[]string{"sect1", "subsect1", "key4", "", "true"},
-		[]string{"sect1", "subsect1", "key5", "", "false"},
-		[]string{"sect1", "subsect2", "", "", "true"},
-		[]string{"sect2", "", "", "", "true"},
+		{"sect1", "", "", "", "true"},
+		{"sect1", "", "key1", "value1", "false"},
+		{"sect1", "subsect1", "", "", "true"},
+		{"sect1", "subsect1", "key2", "value2", "false"},
+		{"sect1", "subsect1", "key3", "value3", "false"},
+		{"sect1", "subsect1", "key4", "", "true"},
+		{"sect1", "subsect1", "key5", "", "false"},
+		{"sect1", "subsect2", "", "", "true"},
+		{"sect2", "", "", "", "true"},
 	}
 	err := ReadWithCallback(bytes.NewReader([]byte(text)), cb)
 	if err != nil {
