@@ -6,8 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/warnings.v0"
-
 	"github.com/go-git/gcfg/scanner"
 	"github.com/go-git/gcfg/token"
 )
@@ -48,7 +46,7 @@ func unquote(s string) string {
 	return string(u)
 }
 
-func read(c *warnings.Collector, callback func(string, string, string, string, bool) error,
+func read(callback func(string, string, string, string, bool) error,
 	fset *token.FileSet, file *token.File, src []byte) error {
 	//
 	var s scanner.Scanner
@@ -59,9 +57,10 @@ func read(c *warnings.Collector, callback func(string, string, string, string, b
 	errfn := func(msg string) error {
 		return fmt.Errorf("%s: %s", fset.Position(pos), msg)
 	}
+	var accErr error
 	for {
 		if errs.Len() > 0 {
-			if err := c.Collect(errs.Err()); err != nil {
+			if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 				return err
 			}
 		}
@@ -73,62 +72,62 @@ func read(c *warnings.Collector, callback func(string, string, string, string, b
 		case token.LBRACK:
 			pos, tok, lit = s.Scan()
 			if errs.Len() > 0 {
-				if err := c.Collect(errs.Err()); err != nil {
+				if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 					return err
 				}
 			}
 			if tok != token.IDENT {
-				if err := c.Collect(errfn("expected section name")); err != nil {
+				if err, fatal := joinNonFatal(accErr, errfn("expected section name")); fatal {
 					return err
 				}
 			}
 			sect, sectsub = lit, ""
 			pos, tok, lit = s.Scan()
 			if errs.Len() > 0 {
-				if err := c.Collect(errs.Err()); err != nil {
+				if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 					return err
 				}
 			}
 			if tok == token.STRING {
 				sectsub = unquote(lit)
 				if sectsub == "" {
-					if err := c.Collect(errfn("empty subsection name")); err != nil {
+					if err, fatal := joinNonFatal(accErr, errfn("empty subsection name")); fatal {
 						return err
 					}
 				}
 				pos, tok, lit = s.Scan()
 				if errs.Len() > 0 {
-					if err := c.Collect(errs.Err()); err != nil {
+					if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 						return err
 					}
 				}
 			}
 			if tok != token.RBRACK {
 				if sectsub == "" {
-					if err := c.Collect(errfn("expected subsection name or right bracket")); err != nil {
+					if err, fatal := joinNonFatal(accErr, errfn("expected subsection name or right bracket")); fatal {
 						return err
 					}
 				}
-				if err := c.Collect(errfn("expected right bracket")); err != nil {
+				if err, fatal := joinNonFatal(accErr, errfn("expected right bracket")); fatal {
 					return err
 				}
 			}
 			pos, tok, lit = s.Scan()
 			if tok != token.EOL && tok != token.EOF && tok != token.COMMENT {
-				if err := c.Collect(errfn("expected EOL, EOF, or comment")); err != nil {
+				if err, fatal := joinNonFatal(accErr, errfn("expected EOL, EOF, or comment")); fatal {
 					return err
 				}
 			}
 			// If a section/subsection header was found, ensure a
 			// container object is created, even if there are no
 			// variables further down.
-			err := c.Collect(callback(sect, sectsub, "", "", true))
+			err := callback(sect, sectsub, "", "", true)
 			if err != nil {
 				return err
 			}
 		case token.IDENT:
 			if sect == "" {
-				if err := c.Collect(errfn("expected section header")); err != nil {
+				if err, fatal := joinNonFatal(accErr, errfn("expected section header")); fatal {
 					return err
 				}
 			}
@@ -140,45 +139,45 @@ func read(c *warnings.Collector, callback func(string, string, string, string, b
 			blank, v := tok == token.EOF || tok == token.EOL || tok == token.COMMENT, ""
 			if !blank {
 				if tok != token.ASSIGN {
-					if err := c.Collect(errfn("expected '='")); err != nil {
+					if err, fatal := joinNonFatal(accErr, errfn("expected '='")); fatal {
 						return err
 					}
 				}
 				pos, tok, lit = s.Scan()
 				if errs.Len() > 0 {
-					if err := c.Collect(errs.Err()); err != nil {
+					if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 						return err
 					}
 				}
 				if tok != token.STRING {
-					if err := c.Collect(errfn("expected value")); err != nil {
+					if err, fatal := joinNonFatal(accErr, errfn("expected value")); fatal {
 						return err
 					}
 				}
 				v = unquote(lit)
 				pos, tok, lit = s.Scan()
 				if errs.Len() > 0 {
-					if err := c.Collect(errs.Err()); err != nil {
+					if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 						return err
 					}
 				}
 				if tok != token.EOL && tok != token.EOF && tok != token.COMMENT {
-					if err := c.Collect(errfn("expected EOL, EOF, or comment")); err != nil {
+					if err, fatal := joinNonFatal(accErr, errfn("expected EOL, EOF, or comment")); fatal {
 						return err
 					}
 				}
 			}
-			err := c.Collect(callback(sect, sectsub, n, v, blank))
+			err := callback(sect, sectsub, n, v, blank)
 			if err != nil {
 				return err
 			}
 		default:
 			if sect == "" {
-				if err := c.Collect(errfn("expected section header")); err != nil {
+				if err, fatal := joinNonFatal(accErr, errfn("expected section header")); fatal {
 					return err
 				}
 			}
-			if err := c.Collect(errfn("expected section header or variable declaration")); err != nil {
+			if err, fatal := joinNonFatal(accErr, errfn("expected section header or variable declaration")); fatal {
 				return err
 			}
 		}
@@ -188,22 +187,17 @@ func read(c *warnings.Collector, callback func(string, string, string, string, b
 func readInto(config interface{}, fset *token.FileSet, file *token.File,
 	src []byte) error {
 	//
-	c := warnings.NewCollector(isFatal)
 	firstPassCallback := func(s string, ss string, k string, v string, bv bool) error {
-		return set(c, config, s, ss, k, v, bv, false)
+		return set(config, s, ss, k, v, bv, false)
 	}
-	err := read(c, firstPassCallback, fset, file, src)
+	err := read(firstPassCallback, fset, file, src)
 	if err != nil {
 		return err
 	}
 	secondPassCallback := func(s string, ss string, k string, v string, bv bool) error {
-		return set(c, config, s, ss, k, v, bv, true)
+		return set(config, s, ss, k, v, bv, true)
 	}
-	err = read(c, secondPassCallback, fset, file, src)
-	if err != nil {
-		return err
-	}
-	return c.Done()
+	return read(secondPassCallback, fset, file, src)
 }
 
 // ReadWithCallback reads gcfg formatted data from reader and calls
@@ -230,9 +224,8 @@ func ReadWithCallback(reader io.Reader, callback func(string, string, string, st
 
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
-	c := warnings.NewCollector(isFatal)
 
-	return read(c, callback, fset, file, src)
+	return read(callback, fset, file, src)
 }
 
 // ReadInto reads gcfg formatted data from reader and sets the values into the
