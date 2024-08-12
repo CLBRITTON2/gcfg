@@ -16,8 +16,11 @@ import (
 )
 
 var (
-	ErrUnsupportedType  = errors.New("unsupported type")
-	ErrBlankUnsupported = errors.New("blank value not supported for type")
+	ErrUnsupportedType             = errors.New("unsupported type")
+	ErrBlankUnsupported            = errors.New("blank value not supported for type")
+	ErrConfigMustBePointerToStruct = errors.New("config must be a pointer to a struct")
+	ErrInvalidMapFieldForSection   = errors.New("map field for section must have string keys and pointer-to-struct values")
+	ErrInvalidFieldForSection      = errors.New("field for section must be a map or a struct")
 )
 
 type tag struct {
@@ -206,13 +209,13 @@ func newValue(sect string, vCfg reflect.Value,
 		b := bytes.NewBuffer(nil)
 		ge := gob.NewEncoder(b)
 		err = ge.EncodeValue(dfltField)
-		if err != nil && errors.Is(err, ErrCantStoreData) {
+		if err != nil && errors.Is(err, ErrSyntaxWarning) {
 			return pv, err
 		}
 
 		gd := gob.NewDecoder(bytes.NewReader(b.Bytes()))
 		err = gd.DecodeValue(pv.Elem())
-		if err != nil && errors.Is(err, ErrCantStoreData) {
+		if err != nil && errors.Is(err, ErrSyntaxWarning) {
 			return pv, err
 		}
 	}
@@ -224,12 +227,12 @@ func set(cfg interface{}, sect, sub, name string,
 	//
 	vPCfg := reflect.ValueOf(cfg)
 	if vPCfg.Kind() != reflect.Ptr || vPCfg.Elem().Kind() != reflect.Struct {
-		panic(fmt.Errorf("config must be a pointer to a struct"))
+		return ErrConfigMustBePointerToStruct
 	}
 	vCfg := vPCfg.Elem()
 	vSect, _ := fieldFold(vCfg, sect)
 	if !vSect.IsValid() {
-		return newParseError(sect, "", "")
+		return newSyntaxWarning(sect, "", "")
 	}
 	isSubsect := vSect.Kind() == reflect.Map
 	if subsectPass != isSubsect {
@@ -240,8 +243,7 @@ func set(cfg interface{}, sect, sub, name string,
 		if vst.Key().Kind() != reflect.String ||
 			vst.Elem().Kind() != reflect.Ptr ||
 			vst.Elem().Elem().Kind() != reflect.Struct {
-			panic(fmt.Errorf("map field for section must have string keys and "+
-				" pointer-to-struct values: section %q", sect))
+			return fmt.Errorf("%w: section %q", ErrInvalidMapFieldForSection, sect)
 		}
 		if vSect.IsNil() {
 			vSect.Set(reflect.MakeMap(vst))
@@ -258,10 +260,9 @@ func set(cfg interface{}, sect, sub, name string,
 		}
 		vSect = pv.Elem()
 	} else if vSect.Kind() != reflect.Struct {
-		panic(fmt.Errorf("field for section must be a map or a struct: "+
-			"section %q", sect))
+		return fmt.Errorf("%w: section %q", ErrInvalidFieldForSection, sect)
 	} else if sub != "" {
-		return newParseError(sect, sub, "")
+		return newSyntaxWarning(sect, sub, "")
 	}
 	// Empty name is a special value, meaning that only the
 	// section/subsection object is to be created, with no values set.
@@ -272,9 +273,9 @@ func set(cfg interface{}, sect, sub, name string,
 	if !vVar.IsValid() {
 		var err error
 		if isSubsect {
-			err = newParseError(sect, sub, name)
+			err = newSyntaxWarning(sect, sub, name)
 		} else {
-			err = newParseError(sect, "", name)
+			err = newSyntaxWarning(sect, "", name)
 		}
 		return err
 	}

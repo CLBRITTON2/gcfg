@@ -6,9 +6,8 @@ package scanner_test
 
 import (
 	"fmt"
-)
+	"log"
 
-import (
 	"github.com/go-git/gcfg/scanner"
 	"github.com/go-git/gcfg/token"
 )
@@ -20,13 +19,22 @@ color = blue ; Comment`)
 
 	// Initialize the scanner.
 	var s scanner.Scanner
-	fset := token.NewFileSet()                      // positions are relative to fset
-	file := fset.AddFile("", fset.Base(), len(src)) // register input "file"
-	s.Init(file, src, nil /* no error handler */, scanner.ScanComments)
+	fset := token.NewFileSet()                           // positions are relative to fset
+	file, err := fset.AddFile("", fset.Base(), len(src)) // register input "file"
+	if err != nil {
+		log.Fatalf("failed to add file: %v", err)
+	}
+	err = s.Init(file, src, nil /* no error handler */, scanner.ScanComments)
+	if err != nil {
+		log.Fatalf("failed to initialize scanner: %v", err)
+	}
 
 	// Repeated calls to Scan yield the token sequence found in the input.
 	for {
-		pos, tok, lit := s.Scan()
+		pos, tok, lit, err := s.Scan()
+		if err != nil {
+			log.Fatalf("failed to scan: %v", err)
+		}
 		if tok == token.EOF {
 			break
 		}

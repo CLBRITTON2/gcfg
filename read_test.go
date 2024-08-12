@@ -379,7 +379,7 @@ func TestReadStringIntoExtraData(t *testing.T) {
 	name2 = value2`
 	err := FatalOnly(ReadStringInto(res, cfg))
 	if err != nil {
-		t.Error(err)
+		t.Errorf("unexpected error: %v", err)
 	}
 	if res.Section.Name != "value" {
 		t.Errorf("res.Section.Name=%q; want %q", res.Section.Name, "value")

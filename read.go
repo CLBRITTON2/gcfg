@@ -13,7 +13,7 @@ import (
 var unescape = map[rune]rune{'\\': '\\', '"': '"', 'n': '\n', 't': '\t', 'b': '\b', '\n': '\n'}
 
 // no error: invalid literals should be caught by scanner
-func unquote(s string) string {
+func unquote(s string) (string, error) {
 	u, q, esc := make([]rune, 0, len(s)), false, false
 	for _, c := range s {
 		if esc {
@@ -26,7 +26,7 @@ func unquote(s string) string {
 				esc = false
 				continue
 			}
-			panic("invalid escape sequence")
+			return "", ErrMissingEscapeSequence
 		}
 		switch c {
 		case '"':
@@ -38,12 +38,12 @@ func unquote(s string) string {
 		}
 	}
 	if q {
-		panic("missing end quote")
+		return "", ErrMissingEndQuote
 	}
 	if esc {
-		panic("invalid escape sequence")
+		return "", ErrMissingEscapeSequence
 	}
-	return string(u)
+	return string(u), nil
 }
 
 func read(callback func(string, string, string, string, bool) error,
@@ -53,9 +53,12 @@ func read(callback func(string, string, string, string, bool) error,
 	var errs scanner.ErrorList
 	s.Init(file, src, func(p token.Position, m string) { errs.Add(p, m) }, 0)
 	sect, sectsub := "", ""
-	pos, tok, lit := s.Scan()
+	pos, tok, lit, err := s.Scan()
 	errfn := func(msg string) error {
 		return fmt.Errorf("%s: %s", fset.Position(pos), msg)
+	}
+	if err != nil {
+		return err
 	}
 	var accErr error
 	for {
@@ -68,9 +71,15 @@ func read(callback func(string, string, string, string, bool) error,
 		case token.EOF:
 			return nil
 		case token.EOL, token.COMMENT:
-			pos, tok, lit = s.Scan()
+			pos, tok, lit, err = s.Scan()
+			if err != nil {
+				return err
+			}
 		case token.LBRACK:
-			pos, tok, lit = s.Scan()
+			pos, tok, lit, err = s.Scan()
+			if err != nil {
+				return err
+			}
 			if errs.Len() > 0 {
 				if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 					return err
@@ -82,20 +91,31 @@ func read(callback func(string, string, string, string, bool) error,
 				}
 			}
 			sect, sectsub = lit, ""
-			pos, tok, lit = s.Scan()
+			pos, tok, lit, err = s.Scan()
+			if err != nil {
+				return err
+			}
 			if errs.Len() > 0 {
 				if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 					return err
 				}
 			}
 			if tok == token.STRING {
-				sectsub = unquote(lit)
+				ss, err := unquote(lit)
+				if err != nil {
+					return err
+				}
+
+				sectsub = ss
 				if sectsub == "" {
 					if err, fatal := joinNonFatal(accErr, errfn("empty subsection name")); fatal {
 						return err
 					}
 				}
-				pos, tok, lit = s.Scan()
+				pos, tok, lit, err = s.Scan()
+				if err != nil {
+					return err
+				}
 				if errs.Len() > 0 {
 					if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 						return err
@@ -112,7 +132,10 @@ func read(callback func(string, string, string, string, bool) error,
 					return err
 				}
 			}
-			pos, tok, lit = s.Scan()
+			pos, tok, lit, err = s.Scan()
+			if err != nil {
+				return err
+			}
 			if tok != token.EOL && tok != token.EOF && tok != token.COMMENT {
 				if err, fatal := joinNonFatal(accErr, errfn("expected EOL, EOF, or comment")); fatal {
 					return err
@@ -132,7 +155,10 @@ func read(callback func(string, string, string, string, bool) error,
 				}
 			}
 			n := lit
-			pos, tok, lit = s.Scan()
+			pos, tok, lit, err = s.Scan()
+			if err != nil {
+				return err
+			}
 			if errs.Len() > 0 {
 				return errs.Err()
 			}
@@ -143,7 +169,10 @@ func read(callback func(string, string, string, string, bool) error,
 						return err
 					}
 				}
-				pos, tok, lit = s.Scan()
+				pos, tok, lit, err = s.Scan()
+				if err != nil {
+					return err
+				}
 				if errs.Len() > 0 {
 					if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 						return err
@@ -154,8 +183,16 @@ func read(callback func(string, string, string, string, bool) error,
 						return err
 					}
 				}
-				v = unquote(lit)
-				pos, tok, lit = s.Scan()
+				unq, err := unquote(lit)
+				if err != nil {
+					return err
+				}
+
+				v = unq
+				pos, tok, lit, err = s.Scan()
+				if err != nil {
+					return err
+				}
 				if errs.Len() > 0 {
 					if err, fatal := joinNonFatal(accErr, errs.Err()); fatal {
 						return err
@@ -223,7 +260,10 @@ func ReadWithCallback(reader io.Reader, callback func(string, string, string, st
 	}
 
 	fset := token.NewFileSet()
-	file := fset.AddFile("", fset.Base(), len(src))
+	file, err := fset.AddFile("", fset.Base(), len(src))
+	if err != nil {
+		return err
+	}
 
 	return read(callback, fset, file, src)
 }
@@ -236,7 +276,10 @@ func ReadInto(config interface{}, reader io.Reader) error {
 		return err
 	}
 	fset := token.NewFileSet()
-	file := fset.AddFile("", fset.Base(), len(src))
+	file, err := fset.AddFile("", fset.Base(), len(src))
+	if err != nil {
+		return err
+	}
 	return readInto(config, fset, file, src)
 }
 
@@ -260,6 +303,9 @@ func ReadFileInto(config interface{}, filename string) error {
 		return err
 	}
 	fset := token.NewFileSet()
-	file := fset.AddFile(filename, fset.Base(), len(src))
+	file, err := fset.AddFile(filename, fset.Base(), len(src))
+	if err != nil {
+		return err
+	}
 	return readInto(config, fset, file, src)
 }
