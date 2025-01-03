@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/go-git/gcfg/scanner"
-	"github.com/go-git/gcfg/token"
+	"github.com/go-git/gcfg/v2/scanner"
+	"github.com/go-git/gcfg/v2/token"
 )
 
 func ExampleScanner_Scan() {

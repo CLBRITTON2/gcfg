@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-git/gcfg/token"
+	"github.com/go-git/gcfg/v2/token"
 )
 
 var fset = token.NewFileSet()
