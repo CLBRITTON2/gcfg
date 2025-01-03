@@ -17,7 +17,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/go-git/gcfg/token"
+	"github.com/go-git/gcfg/v2/token"
 )
 
 var ErrSourceLenAndSizeMismatch = errors.New("source length and file size mismatch")

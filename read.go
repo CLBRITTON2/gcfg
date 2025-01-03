@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-git/gcfg/scanner"
-	"github.com/go-git/gcfg/token"
+	"github.com/go-git/gcfg/v2/scanner"
+	"github.com/go-git/gcfg/v2/token"
 )
 
 var unescape = map[rune]rune{'\\': '\\', '"': '"', 'n': '\n', 't': '\t', 'b': '\b', '\n': '\n'}
