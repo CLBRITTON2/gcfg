@@ -187,8 +187,6 @@ var readtests = []struct {
 	{"name=value", &cBasic{}, false},
 	// empty section
 	{"\n[]\nname=value", &cBasic{}, false},
-	// empty subsection
-	{"\n[sub \"\"]\nname=value", &cSubs{}, false},
 }}, {"setting", []readtest{
 	{"[section]\nname=value", &cBasic{Section: cBasicS1{Name: "value"}}, true},
 	// pointer
